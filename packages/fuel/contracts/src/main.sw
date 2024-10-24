@@ -6,6 +6,8 @@ use std::bytes::Bytes;
 use std::bytes_conversions::{b256::*, u64::*};
 use std::hash::Hasher;
 
+// TODO: we need an extra salt to allow for multiple locks to exist for the same amount?
+// need to discuss this first, for simplicity avoiding it for now
 pub struct Lock {
     token: AssetId,
     destination: Address,
@@ -14,6 +16,11 @@ pub struct Lock {
     balance: u64,
     expiryTimeSeconds: u64,
     fee: u64,
+}
+
+storage {
+    /// maps lock_hash to wether is has been locked or not
+    lock_map: StorageMap<b256,bool> = StorageMap{}
 }
 
 // TODO: needs testing as well
@@ -47,13 +54,14 @@ impl Lock {
     }
 }
 abi HTLC {
-    fn time_lock() -> bool;
+    fn time_lock(lock: Lock) -> bool;
     fn compute_lock_hash(lock: Lock) -> b256;
 }
 impl HTLC for Contract {
-    fn time_lock() -> bool {
+    fn time_lock(lock: Lock) -> bool {
         true
     }
+
     fn compute_lock_hash(lock: Lock) -> b256 {
         lock.compute_hash()
     }
