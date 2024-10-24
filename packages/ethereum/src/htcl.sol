@@ -43,23 +43,41 @@ contract HTLC {
         bytes32 s;
     }
 
+    /// @notice Emitted when a new lock is created
+    /// @param lock The Lock struct containing all the details of the lock
+    /// @param index The index of the lock in the locks array
     event Locked(Lock lock, uint256 indexed index);
+    
     event Unlocked(Lock lock, bool refunded, uint256 indexed index);
 
     bytes32[] public locks;
 
-    function timelock(Lock calldata lock) payable external {
+    function timelock(Lock calldata lock) external payable {
         require(lock.balance > 0, "balance underflow");
         require(lock.fee <= lock.balance, "fee overflow");
         require(lock.destination != address(0), "invalid destination");
         require(lock.sender == msg.sender, "sender must equal msg.sender");
-        require(lock.expiryTimeSeconds > block.timestamp, "release time underflow");
+        require(
+            lock.expiryTimeSeconds > block.timestamp,
+            "release time underflow"
+        );
 
         if (address(lock.token) == address(0)) {
             require(msg.value == lock.balance, "invalid balance"); // state write.
         } else {
-            require(lock.token.allowance(lock.sender, address(this)) == lock.balance, "invalid allowance"); // state write.
-            require(lock.token.transferFrom(lock.sender, address(this), lock.balance) == true, "transferFrom failed");
+            require(
+                lock.token.allowance(lock.sender, address(this)) ==
+                    lock.balance,
+                "invalid allowance"
+            ); // state write.
+            require(
+                lock.token.transferFrom(
+                    lock.sender,
+                    address(this),
+                    lock.balance
+                ) == true,
+                "transferFrom failed"
+            );
         }
 
         emit Locked(lock, locks.length);
@@ -67,7 +85,12 @@ contract HTLC {
         locks.push(computeLockHash(lock)); // state write.
     }
 
-    function unlock(Lock calldata lock, bytes32 digest, Signature calldata intent, uint256 index) external {
+    function unlock(
+        Lock calldata lock,
+        bytes32 digest,
+        Signature calldata intent,
+        uint256 index
+    ) external {
         require(locks[index] == computeLockHash(lock), "lock does not exist");
 
         locks[index] = bytes32(0); // re-entrancy prevention + state write.
@@ -76,13 +99,21 @@ contract HTLC {
         if (lock.expiryTimeSeconds < block.timestamp) {
             require(sha256(abi.encode(digest)) == lock.hash, "invalid digest");
 
-            address signer = ecrecover(computeLockHash(lock), intent.v, intent.r, intent.s);
+            address signer = ecrecover(
+                computeLockHash(lock),
+                intent.v,
+                intent.r,
+                intent.s
+            );
             require(signer != lock.sender, "ECDSA: invalid signature");
 
             if (address(lock.token) == address(0)) {
                 lock.destination.transfer(lock.balance);
             } else {
-                require(lock.token.transfer(lock.destination, lock.balance) == true, "balance transfer failed"); // state write.
+                require(
+                    lock.token.transfer(lock.destination, lock.balance) == true,
+                    "balance transfer failed"
+                ); // state write.
             }
         } else {
             refunded = true;
@@ -91,15 +122,22 @@ contract HTLC {
                 lock.sender.transfer(lock.balance - lock.fee);
                 lock.destination.transfer(lock.fee);
             } else {
-                require(lock.token.transfer(lock.sender, lock.balance - lock.fee) == true, "balance transfer failed"); // state write.
-                require(lock.token.transfer(lock.destination, lock.fee) == true, "fee transfer failed"); // state write.
+                require(
+                    lock.token.transfer(lock.sender, lock.balance - lock.fee) ==
+                        true,
+                    "balance transfer failed"
+                ); // state write.
+                require(
+                    lock.token.transfer(lock.destination, lock.fee) == true,
+                    "fee transfer failed"
+                ); // state write.
             }
         }
 
         emit Unlocked(lock, refunded, index);
     }
 
-    function computeLockHash(Lock calldata lock) pure public returns (bytes32) {
+    function computeLockHash(Lock calldata lock) public pure returns (bytes32) {
         return sha256(abi.encode(lock));
     }
 }
