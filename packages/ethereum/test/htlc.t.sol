@@ -364,30 +364,6 @@ contract HTLCTest is Test {
         htlc.unlock(lock, wrongSecret, signature, 0);
     }
 
-    // function testUnlockWithEtherInvalidSecret() public {
-    //     bytes32 secret = keccak256("mysecret");
-    //     bytes32 hashOfSecret = keccak256(abi.encodePacked(secret));
-
-    //     HTLC.Lock memory lock = HTLC.Lock({
-    //         token: IERC20(address(0)),
-    //         destination: destination,
-    //         sender: sender,
-    //         hash: hashOfSecret,
-    //         balance: balance,
-    //         expiryTimeSeconds: expiryTimeSeconds,
-    //         fee: fee
-    //     });
-
-    //     htlc.timelock{value: balance}(lock);
-    //     uint256 lockIndex = 0;
-    //     bytes32 lockHash = htlc.locks(lockIndex);
-
-    //     bytes32 wrongSecret = keccak256("wrongsecret");
-
-    //     vm.expectRevert("invalid secret");
-    //     htlc.unlock(lockHash, wrongSecret);
-    // }
-
     function signLockHash(bytes32 lockHash, uint256 privateKey) internal pure returns (HTLC.Signature memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, lockHash);
         return HTLC.Signature({
@@ -395,6 +371,85 @@ contract HTLCTest is Test {
             r: r,
             s: s
         });
+    }
+
+    function testUnlockWithERC20() public {
+        HTLC.Lock memory lock = HTLC.Lock({
+            token: IERC20(address(mockToken)),
+            destination: destination,
+            sender: sender,
+            hash: hash,
+            balance: balance,
+            expiryTimeSeconds: expiryTimeSeconds,
+            fee: fee
+        });
+
+        mockToken.approve(address(htlc), balance);
+        htlc.timelock(lock);
+        bytes32 lockHash = htlc.computeLockHash(lock);
+
+        uint256 initialBalance = mockToken.balanceOf(destination);
+
+        HTLC.Signature memory signature = signLockHash(lockHash, destinationPrivateKey);
+
+        vm.prank(destination);
+        htlc.unlock(lock, secret, signature, 0);
+
+        assertEq(mockToken.balanceOf(destination), initialBalance + balance, "Destination token balance mismatch");
+    }
+
+    function testUnlockWithERC20AfterExpiry() public {
+        HTLC.Lock memory lock = HTLC.Lock({
+            token: IERC20(address(mockToken)),
+            destination: destination,
+            sender: sender,
+            hash: hash,
+            balance: balance,
+            expiryTimeSeconds: block.timestamp + 1 hours,
+            fee: fee
+        });
+
+        mockToken.approve(address(htlc), balance);
+        htlc.timelock(lock);
+        
+        bytes32 lockHash = htlc.computeLockHash(lock);
+
+        uint256 initialSenderBalance = mockToken.balanceOf(sender);
+        uint256 initialDestinationBalance = mockToken.balanceOf(destination);
+
+        HTLC.Signature memory signature = signLockHash(lockHash, destinationPrivateKey);
+
+        // Fast forward time to after expiry
+        vm.warp(block.timestamp + 2 hours);
+
+        htlc.unlock(lock, secret, signature, 0);
+
+        assertEq(mockToken.balanceOf(sender), initialSenderBalance + (balance - fee), "Sender token balance mismatch");
+        assertEq(mockToken.balanceOf(destination), initialDestinationBalance + fee, "Destination token balance mismatch");
+    }
+
+    function testUnlockWithERC20InvalidSecret() public {
+        bytes32 wrongSecret = sha256(abi.encode("wrongsecret"));
+
+        HTLC.Lock memory lock = HTLC.Lock({
+            token: IERC20(address(mockToken)),
+            destination: destination,
+            sender: sender,
+            hash: hash,
+            balance: balance,
+            expiryTimeSeconds: block.timestamp + 1 hours,
+            fee: fee
+        });
+
+        mockToken.approve(address(htlc), balance);
+        htlc.timelock(lock);
+        
+        bytes32 lockHash = htlc.computeLockHash(lock);
+
+        HTLC.Signature memory signature = signLockHash(lockHash, destinationPrivateKey);
+
+        vm.expectRevert("invalid digest");
+        htlc.unlock(lock, wrongSecret, signature, 0);
     }
 
        // Fallback function: Called when no other function matches
