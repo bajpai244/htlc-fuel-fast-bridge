@@ -3,6 +3,7 @@
 pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {console} from "forge-std/Test.sol";
 
 /*
 HTLC - Hash Time Lock Contract.
@@ -47,7 +48,7 @@ contract HTLC {
     /// @param lock The Lock struct containing all the details of the lock
     /// @param index The index of the lock in the locks array
     event Locked(Lock lock, uint256 indexed index);
-    
+
     event Unlocked(Lock lock, bool refunded, uint256 indexed index);
 
     bytes32[] public locks;
@@ -96,15 +97,17 @@ contract HTLC {
         locks[index] = bytes32(0); // re-entrancy prevention + state write.
 
         bool refunded = false;
-        if (lock.expiryTimeSeconds < block.timestamp) {
-            require(sha256(abi.encode(digest)) == lock.hash, "invalid digest");
 
+        if (block.timestamp < lock.expiryTimeSeconds) {
+            require(sha256(abi.encode(digest)) == lock.hash, "invalid digest");
+            
             address signer = ecrecover(
                 computeLockHash(lock),
                 intent.v,
                 intent.r,
                 intent.s
             );
+
             require(signer != lock.sender, "ECDSA: invalid signature");
 
             if (address(lock.token) == address(0)) {
