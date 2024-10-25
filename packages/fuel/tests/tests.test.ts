@@ -8,27 +8,35 @@ import { B256Coder, bn, BN, sha256, StringCoder, toUtf8Bytes } from "fuels";
 
 describe('HTCL tests', async ( )=> {
 
-const launched = await launchTestNode({
-    walletsConfig: {
-        count: 5,
-        assets: 1,
-        amountPerCoin: 10000000,
-    },
-    contractsConfigs: [{
-     factory: ContractsFactory,
-     walletIndex: 0   
-    }],
-});
+
 
 afterEach(() => {
     // launched.cleanup()
+    try {
+    execSync('killall fuel-core');
+    }
+    catch(error) {
+        console.log('error in execution the command: `killall fuel-core`');
+    }
 })
 
 afterAll(async () => {
-    execSync('killall fuel-core');
+    // execSync('killall fuel-core');
 })
 
 test("test time lock pass", async () => {
+    const launched = await launchTestNode({
+        walletsConfig: {
+            count: 5,
+            assets: 1,
+            amountPerCoin: 10000000,
+        },
+        contractsConfigs: [{
+         factory: ContractsFactory,
+         walletIndex: 0   
+        }],
+    });
+
     const secret = "mysecret";
     const hash = sha256(toUtf8Bytes(secret));
 
@@ -87,8 +95,8 @@ test("test time lock pass", async () => {
 
 });
 
-test("test compute lock hash 1", () => {
+// test("test compute lock hash 1", () => {
     
-});
+// });
 
 })
