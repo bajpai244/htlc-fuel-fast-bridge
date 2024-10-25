@@ -2,9 +2,9 @@ contract;
 
 use std::address::Address;
 use std::asset_id::AssetId;
-use std::block::timestamp;
+use std::block::height;
 use std::bytes::Bytes;
-use std::bytes_conversions::{b256::*, u64::*};
+use std::bytes_conversions::{b256::*, u64::*, u32::*};
 // Hash is being imported to allow reading from StorageMap
 use std::hash::{Hash, Hasher};
 use std::logging::log;
@@ -18,7 +18,8 @@ pub struct Lock {
     sender: Address,
     hash: b256,
     balance: u64,
-    expiryTimeSeconds: u64,
+    // expressed in block time
+    expiryTimeSeconds: u32,
     fee: u64,
 }
 storage {
@@ -71,11 +72,14 @@ pub enum LockErrors {
 }
 abi HTLC {
     #[storage(read, write)]
+    #[payable]
     fn time_lock(lock: Lock) -> bool;
     fn compute_lock_hash(lock: Lock) -> b256;
 }
+
 impl HTLC for Contract {
     #[storage(read, write)]
+    #[payable]
     fn time_lock(lock: Lock) -> bool {
         require(lock.balance > 0, LockErrors::BalanceUnderflow);
         require(lock.fee <= lock.balance, LockErrors::FeeOverflow);
@@ -84,19 +88,24 @@ impl HTLC for Contract {
             LockErrors::InvalidDestination,
         );
         require(
-            lock.expiryTimeSeconds > timestamp(),
+            lock.expiryTimeSeconds > height(),
             LockErrors::ReleaseTimeUnderflow,
         );
+
         let lock_hash = lock.compute_hash();
         let lock_exists = storage.lock_map.get(lock_hash).try_read().is_some();
+
         require(!lock_exists, LockErrors::LockAlreadyExists);
         storage.lock_map.insert(lock_hash, 1);
+
         require(msg_asset_id() == lock.token, LockErrors::IncorrectAssetId);
         require(msg_amount() == lock.balance, LockErrors::InvalidBalance);
+
         log(LockEvent {
             lock,
             lock_hash,
         });
+
         true
     }
 
