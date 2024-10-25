@@ -12,9 +12,11 @@ import { ContractsFactory } from "../out/index";
 
 import type { LockInput } from "../out/contracts/Contracts";
 import {
+    Address,
 	B256Coder,
 	bn,
 	BN,
+	createAssetId,
 	ErrorCode,
 	FuelError,
 	sha256,
@@ -33,7 +35,7 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-	test("test time lock fail, low fees", async () => {
+	test("test time lock fail, low balance", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -252,7 +254,6 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-
     test("test time lock fail, release time underflow", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
@@ -326,6 +327,155 @@ describe("HTCL tests", async () => {
 		}
 	});
 
+    test("test time lock fail, wrong asset id passed", async () => {
+		const launched = await launchTestNode({
+			walletsConfig: {
+				count: 5,
+				assets: 1,
+				amountPerCoin: 10000000,
+			},
+			contractsConfigs: [
+				{
+					factory: ContractsFactory,
+					walletIndex: 0,
+				},
+			],
+		});
+
+		const {
+			wallets: [sender, destination],
+			contracts: [contract],
+		} = launched;
+
+		const provider = sender.provider;
+
+		const baseAssetId = provider.getBaseAssetId();
+
+        const wrongAssetId = Address.fromRandom().toAssetId();
+
+		const txGasLimit = provider.getGasConfig().maxGasPerTx.sub(100000);
+
+		const secret = "mysecret";
+		const hash = sha256(toUtf8Bytes(secret));
+
+		const amountToLock = bn(1000);
+		const fee = bn(10);
+
+		// number of blocks for 1 hour of time to pass
+		const ONE_HOUR = 1 * 60 * 60;
+
+		// seet to 1 hour here
+		const expiryTimeSeconds = (await provider.getBlockNumber()).add(ONE_HOUR);
+
+		const lock: LockInput = {
+			token: { bits: wrongAssetId.bits },
+			sender: { bits: sender.address.toB256() },
+			destination: { bits: destination.address.toB256() },
+			hash,
+			balance: amountToLock,
+			expiryTimeSeconds,
+			fee,
+		};
+
+		const { value: lockHash } = await contract.functions
+			.compute_lock_hash(lock)
+			.get();
+		console.log("lockHash: ", lockHash);
+
+		const previousBalanceOfContract = await contract.getBalance(baseAssetId);
+		console.log("previous balance of contract", previousBalanceOfContract);
+
+		try {
+			await contract.functions
+				.time_lock(lock)
+				.callParams({
+					forward: [amountToLock, baseAssetId],
+				})
+				.txParams({
+					gasLimit: txGasLimit,
+				})
+				.call();
+		} catch (error) {
+			expect(error.message).toBe(
+				`The transaction reverted because a "require" statement has thrown "IncorrectAssetId".`,
+			);
+			expect(error.code).toBe(ErrorCode.SCRIPT_REVERTED);
+		}
+	});
+
+    test("test time lock fail, wrong amount passed", async () => {
+		const launched = await launchTestNode({
+			walletsConfig: {
+				count: 5,
+				assets: 1,
+				amountPerCoin: 10000000,
+			},
+			contractsConfigs: [
+				{
+					factory: ContractsFactory,
+					walletIndex: 0,
+				},
+			],
+		});
+
+		const {
+			wallets: [sender, destination],
+			contracts: [contract],
+		} = launched;
+
+		const provider = sender.provider;
+
+		const baseAssetId = provider.getBaseAssetId();
+
+		const txGasLimit = provider.getGasConfig().maxGasPerTx.sub(100000);
+
+		const secret = "mysecret";
+		const hash = sha256(toUtf8Bytes(secret));
+
+		const amountToLock = bn(1000);
+		const fee = bn(10);
+
+		// number of blocks for 1 hour of time to pass
+		const ONE_HOUR = 1 * 60 * 60;
+
+		// seet to 1 hour here
+		const expiryTimeSeconds = (await provider.getBlockNumber()).add(ONE_HOUR);
+
+		const lock: LockInput = {
+			token: { bits: baseAssetId },
+			sender: { bits: sender.address.toB256() },
+			destination: { bits: destination.address.toB256() },
+			hash,
+			balance: amountToLock.sub(100),
+			expiryTimeSeconds,
+			fee,
+		};
+
+		const { value: lockHash } = await contract.functions
+			.compute_lock_hash(lock)
+			.get();
+		console.log("lockHash: ", lockHash);
+
+		const previousBalanceOfContract = await contract.getBalance(baseAssetId);
+		console.log("previous balance of contract", previousBalanceOfContract);
+
+		try {
+			await contract.functions
+				.time_lock(lock)
+				.callParams({
+					forward: [amountToLock, baseAssetId],
+				})
+				.txParams({
+					gasLimit: txGasLimit,
+				})
+				.call();
+		} catch (error) {
+			expect(error.message).toBe(
+				`The transaction reverted because a "require" statement has thrown "InvalidBalance".`,
+			);
+			expect(error.code).toBe(ErrorCode.SCRIPT_REVERTED);
+		}
+	});
 
 	test("test time lock pass", async () => {
 		const launched = await launchTestNode({
