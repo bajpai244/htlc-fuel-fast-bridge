@@ -12,8 +12,7 @@ use std::call_frames::msg_asset_id;
 use std::context::msg_amount;
 // TODO: we need an extra salt to allow for multiple locks to exist for the same amount?
 // need to discuss this first, for simplicity avoiding it for now
-pub struct
- Lock {
+pub struct Lock {
     token: AssetId,
     destination: Address,
     sender: Address,
@@ -23,7 +22,6 @@ pub struct
     fee: u64,
 }
 storage {
-
     /// maps lock_hash to wether is has been locked or not
     /// b256 -> 1; mean this lock hash been locked
     /// b256 -> 2; means this lock has been succesfully redeemed
@@ -32,12 +30,10 @@ storage {
 }
 // TODO: needs testing as well
 // TODO: explore if `ref mut self` can save gas
-impl Lock
- {
+impl Lock {
     fn to_bytes(self) -> Bytes {
         let mut bytes = Bytes::new();
-        let mut
- token_bytes = self.token.bits().to_be_bytes();
+        let mut token_bytes = self.token.bits().to_be_bytes();
         let mut destination_bytes = self.destination.bits().to_be_bytes();
         let mut sender_bytes = self.sender.bits().to_be_bytes();
         let mut hash_bytes = self.hash.to_be_bytes();
@@ -60,13 +56,11 @@ impl Lock
         hasher.sha256()
     }
 }
-pub struct
- LockEvent {
+pub struct LockEvent {
     lock: Lock,
     lock_hash: b256,
 }
-pub enum
- LockErrors {
+pub enum LockErrors {
     BalanceUnderflow: (),
     FeeOverflow: (),
     InvalidDestination: (),
@@ -75,8 +69,7 @@ pub enum
     InvalidBalance: (),
     LockAlreadyExists: (),
 }
-abi HTLC
- {
+abi HTLC {
     #[storage(read, write)]
     fn time_lock(lock: Lock) -> bool;
     fn compute_lock_hash(lock: Lock) -> b256;
@@ -94,10 +87,8 @@ impl HTLC for Contract {
             lock.expiryTimeSeconds > timestamp(),
             LockErrors::ReleaseTimeUnderflow,
         );
-        let lock_hash
- = lock.compute_hash();
-        let lock_exists
- = storage.lock_map.get(lock_hash).try_read().is_some();
+        let lock_hash = lock.compute_hash();
+        let lock_exists = storage.lock_map.get(lock_hash).try_read().is_some();
         require(!lock_exists, LockErrors::LockAlreadyExists);
         storage.lock_map.insert(lock_hash, 1);
         require(msg_asset_id() == lock.token, LockErrors::IncorrectAssetId);
@@ -109,8 +100,7 @@ impl HTLC for Contract {
         true
     }
 
-    fn compute_lock_hash
-(lock: Lock) -> b256 {
+    fn compute_lock_hash(lock: Lock) -> b256 {
         lock.compute_hash()
     }
 }
