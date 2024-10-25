@@ -10,6 +10,9 @@ use std::hash::{Hash, Hasher};
 use std::logging::log;
 use std::call_frames::msg_asset_id;
 use std::context::msg_amount;
+use std::asset::transfer;
+use std::identity::Identity;
+
 // TODO: we need an extra salt to allow for multiple locks to exist for the same amount?
 // need to discuss this first, for simplicity avoiding it for now
 pub struct Lock {
@@ -72,9 +75,10 @@ pub enum LockErrors {
     LockAlreadyExist: (),
 }
 
-pub enum UnLockErrors {
+pub enum UnlockErrors {
     LockNotExist: (),
-    AlreadyUnlocked: ()
+    AlreadyUnlocked: (),
+    WrongDigest: ()
 }
 
 abi HTLC {
@@ -83,7 +87,7 @@ abi HTLC {
     fn time_lock(lock: Lock) -> bool;
     fn compute_lock_hash(lock: Lock) -> b256;
     #[storage(read, write)]
-    fn unlock(lock_hash: b256, digest: Bytes) -> bool;
+    fn unlock(lock: Lock, digest: Bytes) -> bool;
 }
 
 impl HTLC for Contract {
@@ -119,14 +123,38 @@ impl HTLC for Contract {
     }
 
     #[storage(read, write)]
-    fn unlock(lock_hash: b256, digest: Bytes) -> bool {
+    fn unlock(lock: Lock, digest: Bytes) -> bool {
+
         let mut hasher = Hasher::new();
         hasher.write(digest);
 
-        let hash = hasher.sha256();
+        let digest_hash = hasher.sha256();
+        require(lock.hash == digest_hash, UnlockErrors::WrongDigest);
+
+        let lock_hash = lock.compute_hash();
 
         let lock_exists = storage.lock_map.get(lock_hash).try_read().is_some();
-        require(lock_exists, UnLockErrors::LockNotExist);
+        require(lock_exists, UnlockErrors::LockNotExist);
+
+        // safe unwrap because of the above require
+        let lock_status = storage.lock_map.get(lock_hash).try_read().unwrap();
+        require(lock_status == 1, UnlockErrors::AlreadyUnlocked);
+
+        if lock.expiryTimeSeconds  <= height() {
+            storage.lock_map.insert(lock_hash, 2); 
+
+            transfer(Identity::Address(lock.destination), lock.token, lock.balance);
+        }
+        else {
+             storage.lock_map.insert(lock_hash, 3);
+
+            transfer(Identity::Address(lock.sender), lock.token, lock.balance - lock.fee);
+
+            //TODO: It looks like doing two transfers are failing, we need to dive deeper into std lib to understand
+            // Question: If two variable transfers are required, then do we need two variable outputs for that asset ID in the transaction?
+            // transfer(Identity::Address(lock.destination), lock.token, lock.fee);
+
+        };
 
         true 
     }
