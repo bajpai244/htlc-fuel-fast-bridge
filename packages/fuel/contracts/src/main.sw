@@ -61,6 +61,7 @@ pub struct LockEvent {
     lock: Lock,
     lock_hash: b256,
 }
+
 pub enum LockErrors {
     BalanceUnderflow: (),
     FeeOverflow: (),
@@ -68,13 +69,21 @@ pub enum LockErrors {
     ReleaseTimeUnderflow: (),
     IncorrectAssetId: (),
     InvalidBalance: (),
-    LockAlreadyExists: (),
+    LockAlreadyExist: (),
 }
+
+pub enum UnLockErrors {
+    LockNotExist: (),
+    AlreadyUnlocked: ()
+}
+
 abi HTLC {
     #[storage(read, write)]
     #[payable]
     fn time_lock(lock: Lock) -> bool;
     fn compute_lock_hash(lock: Lock) -> b256;
+    #[storage(read, write)]
+    fn unlock(lock_hash: b256, digest: Bytes) -> bool;
 }
 
 impl HTLC for Contract {
@@ -95,7 +104,7 @@ impl HTLC for Contract {
         let lock_hash = lock.compute_hash();
         let lock_exists = storage.lock_map.get(lock_hash).try_read().is_some();
 
-        require(!lock_exists, LockErrors::LockAlreadyExists);
+        require(!lock_exists, LockErrors::LockAlreadyExist);
         storage.lock_map.insert(lock_hash, 1);
 
         require(msg_asset_id() == lock.token, LockErrors::IncorrectAssetId);
@@ -107,6 +116,19 @@ impl HTLC for Contract {
         });
 
         true
+    }
+
+    #[storage(read, write)]
+    fn unlock(lock_hash: b256, digest: Bytes) -> bool {
+        let mut hasher = Hasher::new();
+        hasher.write(digest);
+
+        let hash = hasher.sha256();
+
+        let lock_exists = storage.lock_map.get(lock_hash).try_read().is_some();
+        require(lock_exists, UnLockErrors::LockNotExist);
+
+        true 
     }
 
     fn compute_lock_hash(lock: Lock) -> b256 {

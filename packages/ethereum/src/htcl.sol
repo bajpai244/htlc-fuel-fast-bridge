@@ -28,6 +28,8 @@ Features:
 - Intent driven, sender only signs intent once destination has locked.
 */
 contract HTLC {
+    // TODO: add a nonce to allow for unique lock hash, for same data
+    // TODO: we also need to add checks that the Lock doesn't exist before performing a lock
     struct Lock {
         IERC20 token;
         address payable destination;

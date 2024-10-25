@@ -557,7 +557,7 @@ describe("HTCL tests", async () => {
 				.call();
 		} catch (error) {
 			expect(error.message).toBe(
-				`The transaction reverted because a "require" statement has thrown "LockAlreadyExists".`,
+				`The transaction reverted because a "require" statement has thrown "LockAlreadyExist".`,
 			);
 			expect(error.code).toBe(ErrorCode.SCRIPT_REVERTED);
 		}
