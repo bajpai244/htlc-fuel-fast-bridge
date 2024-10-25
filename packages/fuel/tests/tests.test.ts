@@ -20,6 +20,7 @@ import {
 	sha256,
 	StringCoder,
 	toUtf8Bytes,
+    ZeroBytes32,
 } from "fuels";
 
 describe("HTCL tests", async () => {
@@ -173,6 +174,79 @@ describe("HTCL tests", async () => {
 		} catch (error) {
 			expect(error.message).toBe(
 				`The transaction reverted because a "require" statement has thrown "FeeOverflow".`,
+			);
+			expect(error.code).toBe(ErrorCode.SCRIPT_REVERTED);
+		}
+	});
+
+    test("test time lock fail, invalid destination", async () => {
+		const launched = await launchTestNode({
+			walletsConfig: {
+				count: 5,
+				assets: 1,
+				amountPerCoin: 10000000,
+			},
+			contractsConfigs: [
+				{
+					factory: ContractsFactory,
+					walletIndex: 0,
+				},
+			],
+		});
+
+		const {
+			wallets: [sender],
+			contracts: [contract],
+		} = launched;
+
+		const provider = sender.provider;
+
+		const baseAssetId = provider.getBaseAssetId();
+		const txGasLimit = provider.getGasConfig().maxGasPerTx.sub(100000);
+
+		const secret = "mysecret";
+		const hash = sha256(toUtf8Bytes(secret));
+
+		const amountToLock = bn(1000);
+		const fee = bn(10);
+
+		// number of blocks for 1 hour of time to pass
+		const ONE_HOUR = 1 * 60 * 60;
+
+		// seet to 1 hour here
+		const expiryTimeSeconds = (await provider.getBlockNumber()).add(ONE_HOUR);
+
+		const lock: LockInput = {
+			token: { bits: baseAssetId },
+			sender: { bits: sender.address.toB256() },
+			destination: { bits: ZeroBytes32 },
+			hash,
+			balance: amountToLock,
+			expiryTimeSeconds,
+			fee,
+		};
+
+		const { value: lockHash } = await contract.functions
+			.compute_lock_hash(lock)
+			.get();
+		console.log("lockHash: ", lockHash);
+
+		const previousBalanceOfContract = await contract.getBalance(baseAssetId);
+		console.log("previous balance of contract", previousBalanceOfContract);
+
+		try {
+			await contract.functions
+				.time_lock(lock)
+				.callParams({
+					forward: [amountToLock, baseAssetId],
+				})
+				.txParams({
+					gasLimit: txGasLimit,
+				})
+				.call();
+		} catch (error) {
+			expect(error.message).toBe(
+				`The transaction reverted because a "require" statement has thrown "InvalidDestination".`,
 			);
 			expect(error.code).toBe(ErrorCode.SCRIPT_REVERTED);
 		}
