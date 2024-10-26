@@ -140,7 +140,7 @@ impl HTLC for Contract {
         let lock_status = storage.lock_map.get(lock_hash).try_read().unwrap();
         require(lock_status == 1, UnlockErrors::AlreadyUnlocked);
 
-        if lock.expiryTimeSeconds  <= height() {
+        if lock.expiryTimeSeconds > height() {
             storage.lock_map.insert(lock_hash, 2); 
 
             transfer(Identity::Address(lock.destination), lock.token, lock.balance);

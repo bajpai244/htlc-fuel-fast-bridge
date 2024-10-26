@@ -12,7 +12,7 @@ import { ContractsFactory } from "../out/index";
 
 import type { LockInput } from "../out/contracts/Contracts";
 import {
-    Address,
+	Address,
 	B256Coder,
 	bn,
 	BN,
@@ -22,7 +22,7 @@ import {
 	sha256,
 	StringCoder,
 	toUtf8Bytes,
-    ZeroBytes32,
+	ZeroBytes32,
 } from "fuels";
 import { sleep } from "bun";
 
@@ -109,7 +109,7 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-    test("test time lock fail, fees overflow", async () => {
+	test("test time lock fail, fees overflow", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -182,7 +182,7 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-    test("test time lock fail, invalid destination", async () => {
+	test("test time lock fail, invalid destination", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -255,7 +255,7 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-    test("test time lock fail, release time underflow", async () => {
+	test("test time lock fail, release time underflow", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -328,7 +328,7 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-    test("test time lock fail, wrong asset id passed", async () => {
+	test("test time lock fail, wrong asset id passed", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -352,7 +352,7 @@ describe("HTCL tests", async () => {
 
 		const baseAssetId = provider.getBaseAssetId();
 
-        const wrongAssetId = Address.fromRandom().toAssetId();
+		const wrongAssetId = Address.fromRandom().toAssetId();
 
 		const txGasLimit = provider.getGasConfig().maxGasPerTx.sub(100000);
 
@@ -404,7 +404,7 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-    test("test time lock fail, wrong amount passed", async () => {
+	test("test time lock fail, wrong amount passed", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -478,7 +478,7 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-    test("test time lock fail, lock already exists", async () => {
+	test("test time lock fail, lock already exists", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -546,7 +546,7 @@ describe("HTCL tests", async () => {
 
 		const { value, transactionResult } = await waitForResult();
 
-        try {
+		try {
 			await contract.functions
 				.time_lock(lock)
 				.callParams({
@@ -564,7 +564,7 @@ describe("HTCL tests", async () => {
 		}
 	});
 
-	test("test time lock pass", async () => {
+	test("test time lock pass, before expiry", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -646,10 +646,10 @@ describe("HTCL tests", async () => {
 		expect(
 			contractBalanceDifference.eq(amountToLock),
 			"invalid contract balance change",
-		).toBe(true);
+		).toBeTrue;
 	});
 
-    test("test time unlock pass", async () => {
+	test("test time unlock pass", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -665,7 +665,7 @@ describe("HTCL tests", async () => {
 		});
 
 		const secret = "mysecret";
-        const secretBytes = toUtf8Bytes(secret);
+		const secretBytes = toUtf8Bytes(secret);
 		const hash = sha256(secretBytes);
 
 		const amountToLock = bn(10000);
@@ -706,29 +706,36 @@ describe("HTCL tests", async () => {
 		const previousBalanceOfContract = await contract.getBalance(baseAssetId);
 		console.log("previous balance of contract", previousBalanceOfContract);
 
-		await (await contract.functions
-			.time_lock(lock)
-			.callParams({
-				forward: [amountToLock, baseAssetId],
-			})
-			.txParams({
-				gasLimit: txGasLimit,
-			})
-			.call()).waitForResult();
+		await (
+			await contract.functions
+				.time_lock(lock)
+				.callParams({
+					forward: [amountToLock, baseAssetId],
+				})
+				.txParams({
+					gasLimit: txGasLimit,
+				})
+				.call()
+		).waitForResult();
 
-        // 1 second
-        await sleep(1000);
+		// 1 second
+		await sleep(1000);
 
-        const {value, gasUsed} = await (await contract.functions
-			.unlock(lock, secretBytes)
-			.txParams({
-				gasLimit: txGasLimit,
-			})
-			.call()).waitForResult();
+		const previousBalanceDestination = await destination.getBalance();
 
-            
-    console.log('result after unlock:', value);
-    console.log('gas used:', gasUsed);
+		const { value, gasUsed } = await (
+			await contract.functions
+				.unlock(lock, secretBytes)
+				.txParams({
+					gasLimit: txGasLimit,
+				})
+				.call()
+		).waitForResult();
 
+		const afterBalanceDestination = await destination.getBalance();
+
+        const differenceBalanceDestination = afterBalanceDestination.sub(previousBalanceDestination);
+
+		expect(amountToLock.eq(differenceBalanceDestination)).toBeTrue();
 	});
 });
