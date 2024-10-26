@@ -64,7 +64,7 @@ contract HTLC {
         require(lock.fee <= lock.balance, "fee overflow");
         require(lock.destination != address(0), "invalid destination");
 
-        require(lock.expiryTimeSeconds > block.timestamp, "release time underflow");
+        require(lock.expiryTimeSeconds > block.number, "release time underflow");
 
         bytes32 lockHash = computeLockHash(lock);
         require(locks[lockHash] == 0, "lock already exists");

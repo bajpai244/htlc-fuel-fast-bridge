@@ -6,6 +6,8 @@ import { InMemoryDatabase, type JobData } from './database';
 dotenv.config();
 
 const app = express();
+app.use(express.json());
+
 const port = process.env.PORT || 3000;
 
 export const db = new InMemoryDatabase();
@@ -57,6 +59,22 @@ app.get('/job/:jobId', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+app.post('/submit_eth_lock/:jobId', async(req, res)=> {
+
+  const jobId = req.params.jobId;
+
+  const job = await db.getJob(jobId);
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  // Check if req.body is empty
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.status(400).json({ error: 'Request body is empty' });
+  }
+
+})
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);

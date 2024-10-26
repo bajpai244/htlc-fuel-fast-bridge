@@ -12,7 +12,11 @@
     "prettier": "^2.8.8"
   },
   "dependencies": {
-    "axios": "^1.6.7"
+    "axios": "^1.6.7",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
+    "fuels": "^0.96.1",
+    "viem": "^2.21.35"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
