@@ -59,7 +59,7 @@ contract HTLC {
         require(lock.balance > 0, "balance underflow");
         require(lock.fee <= lock.balance, "fee overflow");
         require(lock.destination != address(0), "invalid destination");
-        require(lock.sender == msg.sender, "sender must equal msg.sender");
+
         require(
             lock.expiryTimeSeconds > block.timestamp,
             "release time underflow"

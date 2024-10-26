@@ -196,27 +196,6 @@ contract HTLCTest is Test {
         htlc.timelock(lock);
     }
 
-    function testTimelockWithERC20InsufficientBalance() public {
-        address payable poorSender = payable(address(0x1111));
-        mockToken.mint(poorSender, balance - 1);
-
-        HTLC.Lock memory lock = HTLC.Lock({
-            token: IERC20(address(mockToken)),
-            destination: destination,
-            sender: poorSender,
-            hash: hash,
-            balance: balance,
-            expiryTimeSeconds: expiryTimeSeconds,
-            fee: fee
-        });
-
-        vm.prank(poorSender);
-        mockToken.approve(address(htlc), balance);
-
-        vm.expectRevert("sender must equal msg.sender");
-        htlc.timelock(lock);
-    }
-
     function testTimelockWithERC20PastExpiry() public {
         HTLC.Lock memory lock = HTLC.Lock({
             token: IERC20(address(mockToken)),
