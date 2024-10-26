@@ -2,25 +2,18 @@ import {
 	expect,
 	test,
 	afterEach,
-	afterAll,
 	describe,
-	beforeAll,
 } from "bun:test";
-import { expectToThrowFuelError, launchTestNode } from "fuels/test-utils";
-import { execSync } from "child_process";
+import { launchTestNode } from "fuels/test-utils";
+import { execSync } from "node:child_process";
 import { ContractsFactory } from "../out/index";
 
 import type { LockInput } from "../out/contracts/Contracts";
 import {
 	Address,
-	B256Coder,
 	bn,
-	BN,
-	createAssetId,
 	ErrorCode,
-	FuelError,
 	sha256,
-	StringCoder,
 	toUtf8Bytes,
 	ZeroBytes32,
 } from "fuels";
@@ -649,7 +642,10 @@ describe("HTCL tests", async () => {
 		).toBeTrue;
 	});
 
-	test("test time unlock pass", async () => {
+	// TODO: we need to add a testcases here once fee refunds are working
+	// A test case for checking destination gets back the fee is neccessary as well
+	// Although the bridge can work fine if only being used for deposit from Ethereum to Fuel { or some other chain to Fuel }
+	test("test time unlock pass, after expiry", async () => {
 		const launched = await launchTestNode({
 			walletsConfig: {
 				count: 5,
@@ -675,7 +671,10 @@ describe("HTCL tests", async () => {
 		const ONE_HOUR = 1 * 60 * 60;
 
 		const {
-			wallets: [sender, destination],
+			// NOTE: we making sender here the second wallet, so that we can easily assert that right amount is credited back
+			// otherwise we would also have to take in account the gas charged
+			// one solution is also to make the gasPrice zero for the node
+			wallets: [deployer, sender, destination],
 			contracts: [contract],
 		} = launched;
 
@@ -686,7 +685,7 @@ describe("HTCL tests", async () => {
 
 		// expressed in block time, block time 1 second
 		// seet to 1 hour here
-		const expiryTimeSeconds = (await provider.getBlockNumber()).add(ONE_HOUR);
+		const expiryTimeSeconds = (await provider.getBlockNumber()).add(100);
 
 		const lock: LockInput = {
 			token: { bits: baseAssetId },
@@ -721,7 +720,12 @@ describe("HTCL tests", async () => {
 		// 1 second
 		await sleep(1000);
 
-		const previousBalanceDestination = await destination.getBalance();
+		await provider.produceBlocks(expiryTimeSeconds.add(1).toNumber());
+
+		console.log('block number', await provider.getBlockNumber());
+		console.log('expiry', await expiryTimeSeconds);
+
+		const previousBalanceSender = await sender.getBalance();
 
 		const { value, gasUsed } = await (
 			await contract.functions
@@ -732,10 +736,10 @@ describe("HTCL tests", async () => {
 				.call()
 		).waitForResult();
 
-		const afterBalanceDestination = await destination.getBalance();
+		const afterBalanceDestination = await sender.getBalance();
 
-        const differenceBalanceDestination = afterBalanceDestination.sub(previousBalanceDestination);
+        const differenceBalanceSender = afterBalanceDestination.sub(previousBalanceSender);
 
-		expect(amountToLock.eq(differenceBalanceDestination)).toBeTrue();
+		expect(amountToLock.sub(fee).eq(differenceBalanceSender)).toBeTrue();
 	});
 });
