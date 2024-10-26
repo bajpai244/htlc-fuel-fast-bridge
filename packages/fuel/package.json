@@ -2,8 +2,12 @@
   "name": "fuel",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "fmt": "prettier --write ."
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "prettier": "^2.8.8"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

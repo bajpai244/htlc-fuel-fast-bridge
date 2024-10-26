@@ -1,7 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { generateRandom32Bytes, generateRandom32BytesHex, sha256 } from './utils';
-import  {InMemoryDatabase, type JobData } from './database';
+import { InMemoryDatabase, type JobData } from './database';
 
 dotenv.config();
 
@@ -31,7 +31,7 @@ app.post('/create_job', async (req, res) => {
       ethereum_transaction_hash: '',
       fuel_transaction_hash: '',
       hash,
-      digest
+      digest,
     };
     await db.insertJob(jobId, initialJobData);
     res.json({ jobId, hash });

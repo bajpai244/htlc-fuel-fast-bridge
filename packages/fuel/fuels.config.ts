@@ -1,9 +1,7 @@
 import { createConfig } from 'fuels';
 
 export default createConfig({
-  contracts: [
-        'contracts',
-  ],
+  contracts: ['contracts'],
   output: './out',
 });
 
