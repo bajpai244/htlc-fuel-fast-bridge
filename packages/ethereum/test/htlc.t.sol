@@ -60,13 +60,14 @@ contract HTLCTest is Test {
 
         htlc.timelock{value: balance}(lock);
 
-        assertEq(htlc.locks(0), htlc.computeLockHash(lock), "Lock hash mismatch");
+        bytes32 lockHash = htlc.computeLockHash(lock);
+        assertEq(htlc.locks(lockHash), 1, "Lock status mismatch");
     }
 
     function testTimelockWithERC20() public {
         // Deploy a mock ERC20 token
         MockERC20 mockToken = new MockERC20("Test Token", "TEST", 18);
-        
+
         // Mint some tokens to the sender
         mockToken.mint(sender, balance);
 
@@ -85,7 +86,8 @@ contract HTLCTest is Test {
 
         htlc.timelock(lock);
 
-        assertEq(htlc.locks(0), htlc.computeLockHash(lock), "Lock hash mismatch");
+        bytes32 lockHash = htlc.computeLockHash(lock);
+        assertEq(htlc.locks(lockHash), 1, "Lock status mismatch");
         assertEq(mockToken.balanceOf(address(htlc)), balance, "Token balance mismatch");
     }
 
@@ -172,7 +174,7 @@ contract HTLCTest is Test {
             hash: hash,
             balance: balance,
             expiryTimeSeconds: expiryTimeSeconds,
-            fee: balance +1 // Fee is greater than balance
+            fee: balance + 1 // Fee is greater than balance
         });
 
         vm.expectRevert("fee overflow");
@@ -263,7 +265,6 @@ contract HTLCTest is Test {
     }
 
     function testUnlockWithEther() public {
-
         HTLC.Lock memory lock = HTLC.Lock({
             token: IERC20(address(0)),
             destination: destination,
@@ -282,9 +283,10 @@ contract HTLCTest is Test {
         HTLC.Signature memory signature = signLockHash(lockHash, destinationPrivateKey);
 
         vm.prank(destination);
-        htlc.unlock(lock, secret, signature, 0);
+        htlc.unlock(lock, secret, signature);
 
         assertEq(destination.balance, initialBalance + balance, "Destination balance mismatch");
+        assertEq(htlc.locks(lockHash), 2, "Lock status mismatch after unlock");
     }
 
     function testUnlockWithEtherAfterExpiry() public {
@@ -299,7 +301,7 @@ contract HTLCTest is Test {
         });
 
         htlc.timelock{value: balance}(lock);
-        
+
         bytes32 lockHash = htlc.computeLockHash(lock);
 
         uint256 initialSenderBalance = sender.balance;
@@ -310,12 +312,12 @@ contract HTLCTest is Test {
         // Fast forward time to after expiry
         vm.warp(block.timestamp + 2 hours);
 
-        htlc.unlock(lock, secret, signature, 0);
+        htlc.unlock(lock, secret, signature);
 
         assertEq(sender.balance, initialSenderBalance + (balance - fee), "Sender balance mismatch");
         assertEq(destination.balance, initialDestinationBalance + fee, "Destination balance mismatch");
+        assertEq(htlc.locks(lockHash), 3, "Lock status mismatch after expired unlock");
     }
-
 
     function testUnlockWithEtherInvalidSecret() public {
         bytes32 wrongSecret = sha256(abi.encode("wrongsecret"));
@@ -331,7 +333,7 @@ contract HTLCTest is Test {
         });
 
         htlc.timelock{value: balance}(lock);
-        
+
         bytes32 lockHash = htlc.computeLockHash(lock);
 
         uint256 initialSenderBalance = sender.balance;
@@ -340,16 +342,7 @@ contract HTLCTest is Test {
         HTLC.Signature memory signature = signLockHash(lockHash, destinationPrivateKey);
 
         vm.expectRevert("invalid digest");
-        htlc.unlock(lock, wrongSecret, signature, 0);
-    }
-
-    function signLockHash(bytes32 lockHash, uint256 privateKey) internal pure returns (HTLC.Signature memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, lockHash);
-        return HTLC.Signature({
-            v: v,
-            r: r,
-            s: s
-        });
+        htlc.unlock(lock, wrongSecret, signature);
     }
 
     function testUnlockWithERC20() public {
@@ -372,9 +365,10 @@ contract HTLCTest is Test {
         HTLC.Signature memory signature = signLockHash(lockHash, destinationPrivateKey);
 
         vm.prank(destination);
-        htlc.unlock(lock, secret, signature, 0);
+        htlc.unlock(lock, secret, signature);
 
         assertEq(mockToken.balanceOf(destination), initialBalance + balance, "Destination token balance mismatch");
+        assertEq(htlc.locks(lockHash), 2, "Lock status mismatch after unlock");
     }
 
     function testUnlockWithERC20AfterExpiry() public {
@@ -390,7 +384,7 @@ contract HTLCTest is Test {
 
         mockToken.approve(address(htlc), balance);
         htlc.timelock(lock);
-        
+
         bytes32 lockHash = htlc.computeLockHash(lock);
 
         uint256 initialSenderBalance = mockToken.balanceOf(sender);
@@ -401,10 +395,13 @@ contract HTLCTest is Test {
         // Fast forward time to after expiry
         vm.warp(block.timestamp + 2 hours);
 
-        htlc.unlock(lock, secret, signature, 0);
+        htlc.unlock(lock, secret, signature);
 
         assertEq(mockToken.balanceOf(sender), initialSenderBalance + (balance - fee), "Sender token balance mismatch");
-        assertEq(mockToken.balanceOf(destination), initialDestinationBalance + fee, "Destination token balance mismatch");
+        assertEq(
+            mockToken.balanceOf(destination), initialDestinationBalance + fee, "Destination token balance mismatch"
+        );
+        assertEq(htlc.locks(lockHash), 3, "Lock status mismatch after expired unlock");
     }
 
     function testUnlockWithERC20InvalidSecret() public {
@@ -422,21 +419,20 @@ contract HTLCTest is Test {
 
         mockToken.approve(address(htlc), balance);
         htlc.timelock(lock);
-        
+
         bytes32 lockHash = htlc.computeLockHash(lock);
 
         HTLC.Signature memory signature = signLockHash(lockHash, destinationPrivateKey);
 
         vm.expectRevert("invalid digest");
-        htlc.unlock(lock, wrongSecret, signature, 0);
+        htlc.unlock(lock, wrongSecret, signature);
     }
 
-       // Fallback function: Called when no other function matches
-    fallback() external payable {
+    function signLockHash(bytes32 lockHash, uint256 privateKey) internal pure returns (HTLC.Signature memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, lockHash);
+        return HTLC.Signature({v: v, r: r, s: s});
     }
 
-    // Receive function: Called when only Ether is sent (no data)
-    receive() external payable {
-    }
-
+    fallback() external payable {}
+    receive() external payable {}
 }

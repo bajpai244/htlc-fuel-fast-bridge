@@ -48,98 +48,72 @@ contract HTLC {
 
     /// @notice Emitted when a new lock is created
     /// @param lock The Lock struct containing all the details of the lock
-    /// @param index The index of the lock in the locks array
-    event Locked(Lock lock, uint256 indexed index);
+    /// @param lockHash The hash of the lock
+    event Locked(Lock lock, bytes32 indexed lockHash);
 
-    event Unlocked(Lock lock, bool refunded, uint256 indexed index);
+    /// @notice Emitted when a lock is unlocked
+    /// @param lock The Lock struct containing all the details of the lock
+    /// @param refunded Whether the lock was refunded (expired) or not
+    /// @param lockHash The hash of the lock
+    event Unlocked(Lock lock, bool refunded, bytes32 indexed lockHash);
 
-    bytes32[] public locks;
+    mapping(bytes32 => uint8) public locks;
 
     function timelock(Lock calldata lock) external payable {
         require(lock.balance > 0, "balance underflow");
         require(lock.fee <= lock.balance, "fee overflow");
         require(lock.destination != address(0), "invalid destination");
 
-        require(
-            lock.expiryTimeSeconds > block.timestamp,
-            "release time underflow"
-        );
+        require(lock.expiryTimeSeconds > block.timestamp, "release time underflow");
+
+        bytes32 lockHash = computeLockHash(lock);
+        require(locks[lockHash] == 0, "lock already exists");
 
         if (address(lock.token) == address(0)) {
-            require(msg.value == lock.balance, "invalid balance"); // state write.
+            require(msg.value == lock.balance, "invalid balance");
         } else {
-            require(
-                lock.token.allowance(lock.sender, address(this)) ==
-                    lock.balance,
-                "invalid allowance"
-            ); // state write.
-            require(
-                lock.token.transferFrom(
-                    lock.sender,
-                    address(this),
-                    lock.balance
-                ) == true,
-                "transferFrom failed"
-            );
+            require(lock.token.allowance(lock.sender, address(this)) == lock.balance, "invalid allowance");
+            require(lock.token.transferFrom(lock.sender, address(this), lock.balance) == true, "transferFrom failed");
         }
 
-        emit Locked(lock, locks.length);
-
-        locks.push(computeLockHash(lock)); // state write.
+        locks[lockHash] = 1; // Set lock status to 1 (locked)
+        emit Locked(lock, lockHash);
     }
 
-    function unlock(
-        Lock calldata lock,
-        bytes32 digest,
-        Signature calldata intent,
-        uint256 index
-    ) external {
-        require(locks[index] == computeLockHash(lock), "lock does not exist");
-
-        locks[index] = bytes32(0); // re-entrancy prevention + state write.
+    function unlock(Lock calldata lock, bytes32 digest, Signature calldata intent) external {
+        bytes32 lockHash = computeLockHash(lock);
+        require(locks[lockHash] == 1, "lock does not exist or has been unlocked");
 
         bool refunded = false;
 
         if (block.timestamp < lock.expiryTimeSeconds) {
+            locks[lockHash] = 2; // Set lock status to 2 (unlocked before expiry)
+
             require(sha256(abi.encode(digest)) == lock.hash, "invalid digest");
-            
-            address signer = ecrecover(
-                computeLockHash(lock),
-                intent.v,
-                intent.r,
-                intent.s
-            );
+
+            address signer = ecrecover(lockHash, intent.v, intent.r, intent.s);
 
             require(signer != lock.sender, "ECDSA: invalid signature");
 
             if (address(lock.token) == address(0)) {
                 lock.destination.transfer(lock.balance);
             } else {
-                require(
-                    lock.token.transfer(lock.destination, lock.balance) == true,
-                    "balance transfer failed"
-                ); // state write.
+                require(lock.token.transfer(lock.destination, lock.balance) == true, "balance transfer failed");
             }
         } else {
             refunded = true;
+            locks[lockHash] = 3; // Set lock status to 3 (unlocked after expiry)
 
             if (address(lock.token) == address(0)) {
                 lock.sender.transfer(lock.balance - lock.fee);
                 lock.destination.transfer(lock.fee);
             } else {
-                require(
-                    lock.token.transfer(lock.sender, lock.balance - lock.fee) ==
-                        true,
-                    "balance transfer failed"
-                ); // state write.
-                require(
-                    lock.token.transfer(lock.destination, lock.fee) == true,
-                    "fee transfer failed"
-                ); // state write.
+                require(lock.token.transfer(lock.sender, lock.balance - lock.fee) == true, "balance transfer failed");
+                require(lock.token.transfer(lock.destination, lock.fee) == true, "fee transfer failed");
             }
         }
 
-        emit Unlocked(lock, refunded, index);
+        emit Unlocked(lock, refunded, lockHash);
     }
 
     function computeLockHash(Lock calldata lock) public pure returns (bytes32) {
