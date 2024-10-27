@@ -8,7 +8,7 @@ export interface JobData {
   expiry_block_fuel: string;
   ethereum_transaction_hash: string;
   fuel_transaction_hash: string;
-  hash: string;
+  hash: `0x${string}`;
   digest: Buffer;
   ethSenderAddress: string;
   ethDestinationAddress: string;

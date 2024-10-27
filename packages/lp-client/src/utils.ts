@@ -21,6 +21,6 @@ export function generateRandom32BytesHex(): string {
  * @param {string | Buffer} input - The input to hash
  * @returns {string} The hexadecimal string representation of the SHA256 hash
  */
-export function sha256(input: string | Buffer): string {
+export function sha256(input: string | Buffer): `0x${string}` {
   return `0x${crypto.createHash('sha256').update(input).digest('hex')}`;
 }
