@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { generateRandom32Bytes, generateRandom32BytesHex, sha256 } from './utils';
 import { InMemoryDatabase, type JobData } from './database';
+import { Wallet } from 'ethers';
 
 dotenv.config();
 
@@ -20,6 +21,17 @@ app.get('/heartbeat', (req, res) => {
 
 app.post('/create_job', async (req, res) => {
   try {
+    const { fuelAddress } = req.body;
+
+    // Validate fuel address
+    if (!fuelAddress || typeof fuelAddress !== 'string' || fuelAddress.trim() === '') {
+      return res.status(400).json({ error: 'Valid fuel address is required' });
+    }
+
+    // Generate random Ethereum address
+    const randomWallet = Wallet.createRandom();
+    const ethAddress = randomWallet.address;
+
     const jobId = generateRandom32BytesHex();
     const digest = generateRandom32Bytes();
     const hash = sha256(digest);
@@ -35,12 +47,18 @@ app.post('/create_job', async (req, res) => {
       hash,
       digest,
       ethSenderAddress: '',
-      ethDestinationAddress: '',
-      fuelSenderAddress: '',
+      ethDestinationAddress: ethAddress,
+      fuelSenderAddress: fuelAddress,
       fuelDestinationAddress: '',
     };
+
     await db.insertJob(jobId, initialJobData);
-    res.json({ jobId, hash });
+
+    res.json({
+      jobId,
+      hash,
+      ethAddress,
+    });
   } catch (error) {
     console.error('Error creating job:', error);
     res.status(500).json({ error: 'Internal server error' });
