@@ -1,57 +1,59 @@
 import axios, { type AxiosInstance } from 'axios';
-import type { JobData } from '../../../lp-client/src/database';
+
+interface CreateJobResponse {
+  jobId: string;
+  hash: `0x${string}`;
+  ethAddress: string;
+}
 
 export class LPClient {
   private axiosInstance: AxiosInstance;
 
-  constructor(baseURL: string) {
+  constructor(baseUrl: string) {
     this.axiosInstance = axios.create({
-      baseURL,
-      timeout: 10000, // 10 seconds timeout
+      baseURL: baseUrl,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   }
 
-  async createJob(arg: { fuelAddress: string }) {
-    const { fuelAddress } = arg;
-
+  async createJob(params: { fuelAddress: string }): Promise<CreateJobResponse> {
     try {
-      const response = await this.axiosInstance.post<{
-        jobId: string;
-        hash: string;
-        ethAddress: string;
-      }>('/create_job', {
-        fuelAddress,
+      const response = await this.axiosInstance.post('/create_job', {
+        fuelAddress: params.fuelAddress,
       });
 
-      console.log('Job created:', response.data);
+      if (!response.data.jobId || !response.data.hash || !response.data.ethAddress) {
+        throw new Error('Invalid response from LP client');
+      }
+
       return response.data;
     } catch (error) {
-      this.handleError('Error creating job:', error);
+      console.error('Error creating job:', error);
       throw error;
     }
   }
 
-  async queryJob(jobId: string): Promise<JobData> {
+  async queryJob(jobId: string) {
     try {
-      const response = await this.axiosInstance.get<JobData>(`/job/${jobId}`);
-      console.log('Job details:', response.data);
+      const response = await this.axiosInstance.get(`/job/${jobId}`);
       return response.data;
     } catch (error) {
-      this.handleError('Error querying job:', error);
+      console.error('Error querying job:', error);
       throw error;
     }
   }
 
-  // Add more methods for other endpoints here
-  // For example:
-  // async updateJob(jobId: string, data: Partial<JobData>): Promise<JobData> { ... }
-  // async deleteJob(jobId: string): Promise<void> { ... }
-
-  private handleError(message: string, error: unknown): void {
-    if (axios.isAxiosError(error)) {
-      console.error(message, error.response?.data || error.message);
-    } else {
-      console.error(message, error);
+  async submitEthLock(jobId: string, ethLockHash: `0x${string}`) {
+    try {
+      const response = await this.axiosInstance.post(`/submit_eth_lock/${jobId}`, {
+        ethLockHash,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting ETH lock:', error);
+      throw error;
     }
   }
 }

@@ -3,6 +3,13 @@ import dotenv from 'dotenv';
 import { generateRandom32Bytes, generateRandom32BytesHex, sha256 } from './utils';
 import { InMemoryDatabase, type JobData } from './database';
 import { Wallet } from 'ethers';
+import { ethWallet } from '../../user-client/src/config';
+import { HTCLAbi } from '../../user-client/src/const';
+import {
+  ethereum as ethereumContractAddress,
+  fuel as fuelContractAddress,
+} from '../../deployer/deployments.json';
+import { decodeFunctionResult, encodeFunctionData, encodeFunctionResult } from 'viem';
 
 dotenv.config();
 
@@ -94,6 +101,51 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.status(400).json({ error: 'Request body is empty' });
   }
+
+  const { ethLockHash } = req.body;
+
+  if (!ethLockHash) {
+    return res.status(400).json({ error: 'ethLockHash is required in request body' });
+  }
+
+  if (typeof ethLockHash !== 'string') {
+    return res.status(400).json({ error: 'ethLockHash must be a string' });
+  }
+
+  if (!ethLockHash.startsWith('0x')) {
+    return res.status(400).json({ error: 'ethLockHash must start with 0x' });
+  }
+
+  // check if lock exists
+  const functionData = encodeFunctionData({
+    abi: HTCLAbi,
+    functionName: 'locks',
+    args: [ethLockHash as `0x${string}`],
+  });
+
+  const getLockHashResult = (await ethWallet.call({
+    to: ethereumContractAddress,
+    data: functionData,
+  })) as `0x${string}`;
+
+  const lockHashExists = decodeFunctionResult({
+    abi: HTCLAbi,
+    functionName: 'locks',
+    data: getLockHashResult,
+  });
+
+  if (lockHashExists !== 1) {
+    return res.status(400).json({ error: 'Lock does not exist or is not in locked state' });
+  }
+
+  console.log('Lock hash:', ethLockHash, 'found');
+
+  // Update job with ethereum lock hash
+  await db.updateJob(jobId, {
+    ethereum_lock_hash: ethLockHash,
+  });
+
+  res.json({ success: true });
 });
 
 app.listen(port, () => {

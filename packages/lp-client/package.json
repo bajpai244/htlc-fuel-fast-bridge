@@ -18,7 +18,8 @@
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
     "express": "^4.18.3",
-    "fuels": "^0.96.1"
+    "fuels": "^0.96.1",
+    "viem": "^2.21.35"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
