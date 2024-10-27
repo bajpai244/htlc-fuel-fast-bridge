@@ -24,18 +24,14 @@ describe('Utils', () => {
   test('sha256 should return a valid hash for a string input', () => {
     const input = 'Hello, World!';
     const result = sha256(input);
-    expect(typeof result).toBe('string');
-    expect(result.length).toBe(64);
-    expect(/^[0-9a-f]+$/.test(result)).toBe(true);
-    expect(result).toBe('dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f');
+
+    expect(result).toBe('0xdffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f');
   });
 
   test('sha256 should return a valid hash for a Buffer input', () => {
     const input = Buffer.from('Hello, World!');
     const result = sha256(input);
-    expect(typeof result).toBe('string');
-    expect(result.length).toBe(64);
-    expect(/^[0-9a-f]+$/.test(result)).toBe(true);
-    expect(result).toBe('dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f');
+
+    expect(result).toBe('0xdffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f');
   });
 });
