@@ -48,8 +48,8 @@ app.post('/create_job', async (req, res) => {
       digest,
       ethSenderAddress: '',
       ethDestinationAddress: ethAddress,
-      fuelSenderAddress: fuelAddress,
-      fuelDestinationAddress: '',
+      fuelSenderAddress: '',
+      fuelDestinationAddress: fuelAddress,
     };
 
     await db.insertJob(jobId, initialJobData);

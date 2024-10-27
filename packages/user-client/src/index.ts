@@ -7,7 +7,7 @@ import { encodeFunctionData } from 'viem';
 import { abi } from '../../ethereum/out/htcl.sol/HTLC.json';
 
 import { fuelWallet, ethWallet, config, ethContract, fuelContract, ethProvider } from './config';
-import { Wallet } from 'ethers';
+import { Wallet } from 'fuels';
 import { parseEther } from 'ethers';
 import type { HTLC } from '../../ethereum/types';
 import { HTCLAbi } from './const';
@@ -19,7 +19,7 @@ dotenv.config();
 async function main() {
   const lpClient = new LPClient(LP_CLIENT_URL);
 
-  const destination = Wallet.createRandom();
+  const fuelDestinationWallet = Wallet.generate();
 
   try {
     console.log('Fuel address:', fuelWallet.address.toString());
@@ -27,7 +27,7 @@ async function main() {
 
     console.log('Creating a new job...');
     const { jobId, hash, ethAddress } = await lpClient.createJob({
-      fuelAddress: destination.address,
+      fuelAddress: fuelDestinationWallet.address.toAddress(),
     });
 
     console.log('Querying the created job...');
@@ -38,7 +38,7 @@ async function main() {
     const lock: HTLC.LockStruct = {
       token: ZeroAddress,
       sender: ethWallet.address,
-      destination,
+      destination: ethAddress,
       hash: jobData.hash,
       balance: parseEther('0.000001'),
       expiryTimeSeconds: BigInt(10),
@@ -56,7 +56,7 @@ async function main() {
       args: [
         {
           token: ZeroAddress as `0x${string}`,
-          destination: destination.address as `0x${string}`,
+          destination: ethAddress as `0x${string}`,
           sender: ethWallet.address as `0x${string}`,
           hash: jobData.hash,
           balance,
