@@ -58,7 +58,7 @@ async function main() {
           token: ZeroAddress as `0x${string}`,
           destination: destination.address as `0x${string}`,
           sender: ethWallet.address as `0x${string}`,
-          hash: `0x${jobData.hash}`,
+          hash: jobData.hash,
           balance,
           fee,
           expiryTimeSeconds: BigInt(currentBlock + 1000),
