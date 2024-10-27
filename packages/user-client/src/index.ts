@@ -26,7 +26,9 @@ async function main() {
     console.log('Ethereum address:', await ethWallet.getAddress());
 
     console.log('Creating a new job...');
-    const jobId = await lpClient.createJob();
+    const { jobId, hash, ethAddress } = await lpClient.createJob({
+      fuelAddress: destination.address,
+    });
 
     console.log('Querying the created job...');
     const jobData = await lpClient.queryJob(jobId);
@@ -80,7 +82,6 @@ async function main() {
     }
 
     console.log('result:', transactionReceipt);
-
   } catch (error) {
     console.error('An error occurred:', error);
   }

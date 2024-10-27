@@ -1,15 +1,5 @@
 import axios, { type AxiosInstance } from 'axios';
-
-export interface JobData {
-  status: 'inProgress' | 'done';
-  ethereum_lock_hash: string;
-  fuel_lock_hash: string;
-  expiry_block_ethereum: string;
-  expiry_block_fuel: string;
-  ethereum_transaction_hash: string;
-  fuel_transaction_hash: string;
-  hash: string;
-}
+import type { JobData } from '../../../lp-client/src/database';
 
 export class LPClient {
   private axiosInstance: AxiosInstance;
@@ -21,11 +11,20 @@ export class LPClient {
     });
   }
 
-  async createJob(): Promise<string> {
+  async createJob(arg: { fuelAddress: string }) {
+    const { fuelAddress } = arg;
+
     try {
-      const response = await this.axiosInstance.post<{ jobId: string }>('/create_job');
+      const response = await this.axiosInstance.post<{
+        jobId: string;
+        hash: string;
+        ethAddress: string;
+      }>('/create_job', {
+        fuelAddress,
+      });
+
       console.log('Job created:', response.data);
-      return response.data.jobId;
+      return response.data;
     } catch (error) {
       this.handleError('Error creating job:', error);
       throw error;
