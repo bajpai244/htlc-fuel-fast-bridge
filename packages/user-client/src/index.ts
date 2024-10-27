@@ -71,10 +71,16 @@ async function main() {
     });
 
     const transactionReceipt = await result.wait();
+    if (!transactionReceipt) {
+      throw new Error('Transaction receipt is null');
+    }
+
+    if (transactionReceipt.status === 0) {
+      throw new Error('Transaction failed');
+    }
 
     console.log('result:', transactionReceipt);
 
-    // const result = await ethContract.timelock(lock);
   } catch (error) {
     console.error('An error occurred:', error);
   }

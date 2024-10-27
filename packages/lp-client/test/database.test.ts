@@ -1,7 +1,8 @@
 import { expect, test, describe, beforeEach } from 'bun:test';
-import { db, JobData } from '../src/database';
+import { InMemoryDatabase, type JobData } from '../src/database';
 
 describe('InMemoryDatabase', () => {
+  let db: InMemoryDatabase;
   const testJobId = 'test-job-id';
   const testJobData: JobData = {
     status: 'inProgress',
@@ -13,14 +14,15 @@ describe('InMemoryDatabase', () => {
     fuel_transaction_hash: 'fuel_tx',
     hash: 'test_hash',
     digest: Buffer.from('test_digest'),
+    // New fields
+    ethSenderAddress: 'eth_sender',
+    ethDestinationAddress: 'eth_destination',
+    fuelSenderAddress: 'fuel_sender',
+    fuelDestinationAddress: 'fuel_destination',
   };
 
-  beforeEach(async () => {
-    // Clear the database before each test
-    const allJobs = await db.getAllJobs();
-    for (const jobId of allJobs.keys()) {
-      await db.deleteJob(jobId);
-    }
+  beforeEach(() => {
+    db = new InMemoryDatabase();
   });
 
   test('insertJob should add a new job', async () => {
@@ -39,6 +41,7 @@ describe('InMemoryDatabase', () => {
     const updatedData: Partial<JobData> = {
       status: 'done',
       ethereum_transaction_hash: 'new_eth_tx',
+      ethSenderAddress: 'new_eth_sender',
     };
     await db.updateJob(testJobId, updatedData);
     const job = await db.getJob(testJobId);

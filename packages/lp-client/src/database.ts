@@ -10,6 +10,10 @@ export interface JobData {
   fuel_transaction_hash: string;
   hash: string;
   digest: Buffer;
+  ethSenderAddress: string;
+  ethDestinationAddress: string;
+  fuelSenderAddress: string;
+  fuelDestinationAddress: string;
 }
 
 export class InMemoryDatabase {

@@ -34,6 +34,10 @@ app.post('/create_job', async (req, res) => {
       fuel_transaction_hash: '',
       hash,
       digest,
+      ethSenderAddress: '',
+      ethDestinationAddress: '',
+      fuelSenderAddress: '',
+      fuelDestinationAddress: '',
     };
     await db.insertJob(jobId, initialJobData);
     res.json({ jobId, hash });
@@ -60,8 +64,7 @@ app.get('/job/:jobId', async (req, res) => {
   }
 });
 
-app.post('/submit_eth_lock/:jobId', async(req, res)=> {
-
+app.post('/submit_eth_lock/:jobId', async (req, res) => {
   const jobId = req.params.jobId;
 
   const job = await db.getJob(jobId);
@@ -73,8 +76,7 @@ app.post('/submit_eth_lock/:jobId', async(req, res)=> {
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.status(400).json({ error: 'Request body is empty' });
   }
-
-})
+});
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
