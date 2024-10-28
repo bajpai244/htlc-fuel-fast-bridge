@@ -66,7 +66,7 @@ app.post('/create_job', async (req, res) => {
       // TODO: this should come as apart of this API call
       ethSenderAddress: ethWallet.address,
       ethDestinationAddress: ethAddress,
-      fuelSenderAddress: '',
+      fuelSenderAddress: fuelWallet.address.toB256(),
       fuelDestinationAddress: Address.fromString(fuelAddress).toB256(),
     };
 
@@ -162,14 +162,14 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
   const fuelLock: LockInput = {
     token: { bits: fuelContract.provider.getBaseAssetId() },
     sender: {
-      bits: fuelWallet.address.toB256(),
+      bits: job.fuelSenderAddress,
     },
     destination: {
       bits: job.fuelDestinationAddress,
     },
     hash: job.hash,
     expiryTimeSeconds,
-    balance: bn(10),
+    balance: bn((balance - fee).toString()),
     // balance: bn(balance.toString()).sub(bn(fee.toString())),
     fee: bn(0),
   };
@@ -208,6 +208,7 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
   await db.updateJob(jobId, {
     ethereum_lock_hash: ethLockHash,
     fuel_lock_hash: fuelLockHash,
+    expiry_block_fuel: expiryTimeSeconds.toString(),
   });
 
   res.json({ success: true });
@@ -292,6 +293,7 @@ app.post('/revealHash/:jobId', async (req, res) => {
 
   res.send({
     success: true,
+    digest: digest,
   });
 });
 

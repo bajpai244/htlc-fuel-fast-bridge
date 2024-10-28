@@ -7,10 +7,12 @@ import { encodeFunctionData } from 'viem';
 import { abi } from '../../ethereum/out/htcl.sol/HTLC.json';
 
 import { fuelWallet, ethWallet, config, ethContract, fuelContract, ethProvider } from './config';
-import { Wallet } from 'fuels';
+import { bn, Wallet } from 'fuels';
 import { parseEther } from 'ethers';
 import type { HTLC } from '../../ethereum/types';
-import { HTCLAbi, balance, fee } from './const';
+import { HTCLAbi, balance, fee, gasLimit } from './const';
+import type { LockInput } from '../../fuel/out/contracts/Contracts';
+import type { JobData } from '../../lp-client/src/database';
 
 const LP_CLIENT_URL = 'http://localhost:3000'; // Adjust this if your lp-client is running on a different port
 
@@ -99,9 +101,55 @@ async function main() {
     const { v, r, s } = ethWallet.signingKey.sign(ethLockHash);
 
     // make a call to get the digest
-    await lpClient.revealHash(jobId, { v, r, s });
+    const revealHashResult = await lpClient.revealHash(jobId, { v, r, s });
+    console.log('revealHashResult', revealHashResult);
 
-    console.log('ethereum lock arg', ethLockArg);
+    // Query job again to get updated status
+    const updatedJob: JobData = await lpClient.queryJob(jobId);
+    console.log('Updated job status:', updatedJob);
+    // make a call to Fuel, to get your funds back
+
+    const fuelLock: LockInput = {
+      token: {
+        bits: fuelContract.provider.getBaseAssetId(),
+      },
+      sender: {
+        bits: updatedJob.fuelSenderAddress,
+      },
+      destination: {
+        bits: updatedJob.fuelDestinationAddress,
+      },
+      hash: updatedJob.hash,
+      expiryTimeSeconds: updatedJob.expiry_block_fuel,
+      balance: bn((balance - fee).toString()),
+      fee: bn(0),
+    };
+
+    console.log(
+      'fuel destination balance before:',
+      await fuelContract.provider.getBalance(
+        updatedJob.fuelDestinationAddress,
+        fuelContract.provider.getBaseAssetId(),
+      ),
+    );
+    console.log('fue lock:', fuelLock);
+
+    await (
+      await fuelContract.functions
+        .unlock(fuelLock, revealHashResult.digest.data)
+        .txParams({
+          gasLimit: gasLimit,
+        })
+        .call()
+    ).waitForResult();
+
+    console.log(
+      'fuel destination balance after:',
+      await fuelContract.provider.getBalance(
+        updatedJob.fuelDestinationAddress,
+        fuelContract.provider.getBaseAssetId(),
+      ),
+    );
   } catch (error) {
     console.error('An error occurred:', error);
   }
