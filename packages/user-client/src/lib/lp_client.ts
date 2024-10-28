@@ -6,6 +6,17 @@ interface CreateJobResponse {
   ethAddress: string;
 }
 
+interface CreateJobParams {
+  fuelAddress: string;
+  ethereumExpiryBlockNumber: string;
+}
+
+interface SignatureData {
+  v: number;
+  r: `0x${string}`;
+  s: `0x${string}`;
+}
+
 export class LPClient {
   private axiosInstance: AxiosInstance;
 
@@ -18,10 +29,11 @@ export class LPClient {
     });
   }
 
-  async createJob(params: { fuelAddress: string }): Promise<CreateJobResponse> {
+  async createJob(params: CreateJobParams): Promise<CreateJobResponse> {
     try {
       const response = await this.axiosInstance.post('/create_job', {
         fuelAddress: params.fuelAddress,
+        ethereumExpiryBlockNumber: params.ethereumExpiryBlockNumber,
       });
 
       if (!response.data.jobId || !response.data.hash || !response.data.ethAddress) {
@@ -53,6 +65,18 @@ export class LPClient {
       return response.data;
     } catch (error) {
       console.error('Error submitting ETH lock:', error);
+      throw error;
+    }
+  }
+
+  async revealHash(jobId: string, signature: SignatureData) {
+    try {
+      const response = await this.axiosInstance.post(`/revealHash/${jobId}`, {
+        signature,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error revealing hash:', error);
       throw error;
     }
   }

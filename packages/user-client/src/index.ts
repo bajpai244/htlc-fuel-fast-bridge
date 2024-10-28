@@ -25,9 +25,13 @@ async function main() {
     console.log('Fuel address:', fuelWallet.address.toString());
     console.log('Ethereum address:', await ethWallet.getAddress());
 
+    const currentBlock = await ethProvider.getBlockNumber();
+    const expiryTimeSecondsEthereum = BigInt(currentBlock + 1000);
+
     console.log('Creating a new job...');
     const { jobId, hash, ethAddress } = await lpClient.createJob({
       fuelAddress: fuelDestinationWallet.address.toAddress(),
+      ethereumExpiryBlockNumber: expiryTimeSecondsEthereum.toString(),
     });
 
     console.log('Querying the created job...');
@@ -35,32 +39,20 @@ async function main() {
 
     console.log('Job data:', jobData);
 
-    const lock: HTLC.LockStruct = {
-      token: ZeroAddress,
-      sender: ethWallet.address,
-      destination: ethAddress,
-      hash: jobData.hash,
-      balance: parseEther('0.000001'),
-      expiryTimeSeconds: BigInt(10),
-      fee: parseEther('0.0000000001'),
-    };
-
-    const currentBlock = await ethProvider.getBlockNumber();
-
-    const lockArg = {
+    const ethLockArg = {
       token: ZeroAddress as `0x${string}`,
       destination: ethAddress as `0x${string}`,
       sender: ethWallet.address as `0x${string}`,
       hash: jobData.hash,
       balance,
       fee,
-      expiryTimeSeconds: BigInt(currentBlock + 1000),
+      expiryTimeSeconds: expiryTimeSecondsEthereum,
     };
 
     const functionData = encodeFunctionData({
       abi: HTCLAbi,
       functionName: 'timelock',
-      args: [lockArg],
+      args: [ethLockArg],
     });
 
     const result = await ethWallet.sendTransaction({
@@ -89,7 +81,7 @@ async function main() {
     const computeLockHashFunctionData = encodeFunctionData({
       abi: HTCLAbi,
       functionName: 'computeLockHash',
-      args: [lockArg],
+      args: [ethLockArg],
     });
 
     const ethLockHash = (await ethWallet.call({
@@ -103,6 +95,13 @@ async function main() {
 
     const submitEthLockResult = await lpClient.submitEthLock(jobId, ethLockHash);
     console.log('submitEthLockResult', submitEthLockResult);
+
+    const { v, r, s } = ethWallet.signingKey.sign(ethLockHash);
+
+    // make a call to get the digest
+    await lpClient.revealHash(jobId, { v, r, s });
+
+    console.log('ethereum lock arg', ethLockArg);
   } catch (error) {
     console.error('An error occurred:', error);
   }
