@@ -72,6 +72,8 @@ app.post('/create_job', async (req, res) => {
 
     await db.insertJob(jobId, initialJobData);
 
+    console.log('ethereum LP destination address:', randomWallet.address, '\n\n');
+
     res.json({
       jobId,
       hash,
@@ -101,6 +103,8 @@ app.get('/job/:jobId', async (req, res) => {
 });
 
 app.post('/submit_eth_lock/:jobId', async (req, res) => {
+  console.log('request to submit the ethereum lock from the user ...', '\n\n');
+
   const jobId = req.params.jobId;
 
   const job = await db.getJob(jobId);
@@ -149,7 +153,7 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
     return res.status(400).json({ error: 'Lock does not exist or is not in locked state' });
   }
 
-  console.log('Lock hash:', ethLockHash, 'found');
+  console.log('Lock hash:', ethLockHash, 'found', '\n\n');
 
   // number of blocks for 1 hour of time to pass
   const ONE_HOUR = 1 * 60 * 60;
@@ -174,10 +178,9 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
     fee: bn(0),
   };
 
-  console.log('fuelLock', fuelLock);
-
+  console.log('locking the funds on Fuel ...', '\n\n');
   const { value: fuelLockHash } = await fuelContract.functions.compute_lock_hash(fuelLock).get();
-  console.log('fuelLockHash:', fuelLockHash);
+  console.log('fuelLockHash:', fuelLockHash, '\n\n');
 
   // create the lock on the fuel side
 
@@ -193,12 +196,12 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
       .call()
   ).waitForResult();
 
-  console.log('result of doing the lock on fuel', value);
+  console.log('funds locked on fuel ...', '\n\n');
 
   const { value: fuelLockStatus } = await fuelContract.functions
     .get_lock_status(fuelLockHash)
     .get();
-  console.log('fuel lock status', fuelLockStatus);
+  console.log('fuel lock status', fuelLockStatus, '\n\n');
 
   if (fuelLockStatus !== 1) {
     throw new Error(`Invalid fuel lock status: ${fuelLockStatus}`);
@@ -215,6 +218,7 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
 });
 
 app.post('/revealHash/:jobId', async (req, res) => {
+  console.log('user requested to reveal hash ...', '\n\n');
   const jobId = req.params.jobId;
 
   // Check if req.body is empty
@@ -231,6 +235,8 @@ app.post('/revealHash/:jobId', async (req, res) => {
         'Missing required signature components. Please provide signature object with v, r and s values.',
     });
   }
+
+  console.log('signature provided for the lock intent:', signature, '\n\n');
 
   const job = await db.getJob(jobId);
   if (!job) {
@@ -249,10 +255,6 @@ app.post('/revealHash/:jobId', async (req, res) => {
     expiryTimeSeconds: BigInt(expiry_block_ethereum),
   };
 
-  console.log('ethereum Lock Arg', ethereumLockArg);
-
-  console.log('ethereumLockArg', ethereumLockArg);
-
   // Convert Buffer to hex string with 0x prefix
   const digestHex = `0x${digest.toString('hex')}` as `0x${string}`;
 
@@ -262,14 +264,13 @@ app.post('/revealHash/:jobId', async (req, res) => {
     args: [ethereumLockArg, digestHex, signature],
   });
 
-  console.log('encoded functionData', functionData);
-
-  console.log('unlocking funds on Ethereum ....');
-
   console.log(
     'balance of eth destination before',
     await ethWallet.provider?.getBalance(ethDestinationAddress),
+    '\n\n',
   );
+
+  console.log('unlocking funds on Ethereum ....', '\n\n');
 
   const result = await (
     await ethWallet.sendTransaction({
@@ -286,9 +287,12 @@ app.post('/revealHash/:jobId', async (req, res) => {
     throw new Error('Transaction failed');
   }
 
+  console.log('unlock complete', '\n\n');
+
   console.log(
     'balance of eth destination after',
     await ethWallet.provider?.getBalance(ethDestinationAddress),
+    '\n\n',
   );
 
   res.send({
@@ -298,5 +302,5 @@ app.post('/revealHash/:jobId', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`, '\n\n');
 });
