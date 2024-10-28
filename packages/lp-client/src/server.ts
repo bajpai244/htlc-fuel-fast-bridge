@@ -4,7 +4,7 @@ import { generateRandom32Bytes, generateRandom32BytesHex, sha256 } from './utils
 import { InMemoryDatabase, type JobData } from './database';
 import { Wallet } from 'ethers';
 import { ethWallet, fuelContract, fuelWallet } from '../../user-client/src/config';
-import { balance, fee, HTCLAbi } from '../../user-client/src/const';
+import { balance, fee, gasLimit, HTCLAbi } from '../../user-client/src/const';
 import {
   ethereum as ethereumContractAddress,
   fuel as fuelContractAddress,
@@ -171,6 +171,22 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
 
   const { value: fuelLockHash } = await fuelContract.functions.compute_lock_hash(fuelLock).get();
   console.log('fuelLockHash:', fuelLockHash);
+
+  // create the lock on the fuel side
+
+  const { value, transactionResult } = await (
+    await fuelContract.functions
+      .time_lock(fuelLock)
+      .callParams({
+        forward: [fuelLock.balance, fuelLock.token.bits],
+      })
+      .txParams({
+        gasLimit: gasLimit,
+      })
+      .call()
+  ).waitForResult();
+
+  console.log('result of doing the lock on fuel', value);
 
   // Update job with ethereum lock hash
   await db.updateJob(jobId, {
