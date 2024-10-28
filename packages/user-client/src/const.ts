@@ -233,4 +233,4 @@ export const balance = parseEther('0.00001');
 export const fee = parseEther('0.000001');
 
 // 25 million, 5 million less than the block gas limit
-export const gasLimit = 25_000_000
+export const gasLimit = 25_000_000;

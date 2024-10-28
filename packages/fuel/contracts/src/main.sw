@@ -88,6 +88,8 @@ abi HTLC {
     fn compute_lock_hash(lock: Lock) -> b256;
     #[storage(read, write)]
     fn unlock(lock: Lock, digest: Bytes) -> bool;
+    #[storage(read)]
+    fn get_lock_status(lock_hash: b256) -> u8;
 }
 
 impl HTLC for Contract {
@@ -161,5 +163,15 @@ impl HTLC for Contract {
 
     fn compute_lock_hash(lock: Lock) -> b256 {
         lock.compute_hash()
+    }
+
+    #[storage(read)]
+    fn get_lock_status(lock_hash: b256) -> u8 {
+         let lock_exists = storage.lock_map.get(lock_hash).try_read().is_some();
+        require(lock_exists, UnlockErrors::LockNotExist);
+
+        // safe unwrap because of the above require
+        let lock_status = storage.lock_map.get(lock_hash).try_read().unwrap();
+        lock_status
     }
 }

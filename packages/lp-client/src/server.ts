@@ -188,6 +188,15 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
 
   console.log('result of doing the lock on fuel', value);
 
+  const { value: fuelLockStatus } = await fuelContract.functions
+    .get_lock_status(fuelLockHash)
+    .get();
+  console.log('fuel lock status', fuelLockStatus);
+
+  if (fuelLockStatus !== 1) {
+    throw new Error(`Invalid fuel lock status: ${fuelLockStatus}`);
+  }
+
   // Update job with ethereum lock hash
   await db.updateJob(jobId, {
     ethereum_lock_hash: ethLockHash,
