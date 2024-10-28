@@ -3,13 +3,17 @@ import dotenv from 'dotenv';
 import { generateRandom32Bytes, generateRandom32BytesHex, sha256 } from './utils';
 import { InMemoryDatabase, type JobData } from './database';
 import { Wallet } from 'ethers';
-import { ethWallet } from '../../user-client/src/config';
-import { HTCLAbi } from '../../user-client/src/const';
+import { ethWallet, fuelContract, fuelWallet } from '../../user-client/src/config';
+import { balance, fee, HTCLAbi } from '../../user-client/src/const';
 import {
   ethereum as ethereumContractAddress,
   fuel as fuelContractAddress,
 } from '../../deployer/deployments.json';
 import { decodeFunctionResult, encodeFunctionData, encodeFunctionResult } from 'viem';
+import type { LockInput } from '../../fuel/out/contracts/Contracts';
+import { bn } from 'fuels';
+import { BN } from '@fuel-ts/math';
+import { Address } from 'fuels';
 
 dotenv.config();
 
@@ -56,7 +60,7 @@ app.post('/create_job', async (req, res) => {
       ethSenderAddress: '',
       ethDestinationAddress: ethAddress,
       fuelSenderAddress: '',
-      fuelDestinationAddress: fuelAddress,
+      fuelDestinationAddress: Address.fromString(fuelAddress).toB256(),
     };
 
     await db.insertJob(jobId, initialJobData);
@@ -140,9 +144,38 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
 
   console.log('Lock hash:', ethLockHash, 'found');
 
+  // number of blocks for 1 hour of time to pass
+  const ONE_HOUR = 1 * 60 * 60;
+
+  // seet to 1 hour here
+  const expiryTimeSeconds = (await fuelContract.provider.getBlockNumber()).add(ONE_HOUR);
+
+  // lock for destination address on Fuel
+
+  const fuelLock: LockInput = {
+    token: { bits: fuelContract.provider.getBaseAssetId() },
+    sender: {
+      bits: fuelWallet.address.toB256(),
+    },
+    destination: {
+      bits: job.fuelDestinationAddress,
+    },
+    hash: job.hash,
+    expiryTimeSeconds,
+    balance: bn(10),
+    // balance: bn(balance.toString()).sub(bn(fee.toString())),
+    fee: bn(0),
+  };
+
+  console.log('fuelLock', fuelLock);
+
+  const { value: fuelLockHash } = await fuelContract.functions.compute_lock_hash(fuelLock).get();
+  console.log('fuelLockHash:', fuelLockHash);
+
   // Update job with ethereum lock hash
   await db.updateJob(jobId, {
     ethereum_lock_hash: ethLockHash,
+    fuel_lock_hash: fuelLockHash,
   });
 
   res.json({ success: true });

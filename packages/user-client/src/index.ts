@@ -10,7 +10,7 @@ import { fuelWallet, ethWallet, config, ethContract, fuelContract, ethProvider }
 import { Wallet } from 'fuels';
 import { parseEther } from 'ethers';
 import type { HTLC } from '../../ethereum/types';
-import { HTCLAbi } from './const';
+import { HTCLAbi, balance, fee } from './const';
 
 const LP_CLIENT_URL = 'http://localhost:3000'; // Adjust this if your lp-client is running on a different port
 
@@ -46,9 +46,6 @@ async function main() {
     };
 
     const currentBlock = await ethProvider.getBlockNumber();
-
-    const balance = parseEther('0.00001');
-    const fee = parseEther('0.000001');
 
     const lockArg = {
       token: ZeroAddress as `0x${string}`,

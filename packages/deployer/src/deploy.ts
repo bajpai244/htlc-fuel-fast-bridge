@@ -51,7 +51,7 @@ async function main() {
     
   const {contract: fuelContract} = await (await fuelFactory.deploy()).waitForResult();
 
-  const fuelDeploymentAddress = fuelContract.account?.address.toAddress();
+  const fuelDeploymentAddress = fuelContract.id.toB256();
 
   console.log('HTLC contract deployed on Fuel to:', fuelDeploymentAddress);
 

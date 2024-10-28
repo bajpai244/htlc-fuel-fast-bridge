@@ -52,6 +52,7 @@ export const ethContract = new ethers.Contract(
   abi,
   ethWallet,
 ) as unknown as HTLC;
+
 export const fuelContract = new FuelContract(FuelContractAddress, fuelWallet);
 
 // Export other configuration variables if needed

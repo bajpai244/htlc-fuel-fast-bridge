@@ -1,3 +1,5 @@
+import { parseEther } from 'ethers';
+
 export const HTCLAbi = [
   {
     type: 'function',
@@ -226,3 +228,6 @@ export const HTCLAbi = [
     anonymous: false,
   },
 ] as const;
+
+export const balance = parseEther('0.00001');
+export const fee = parseEther('0.000001');
