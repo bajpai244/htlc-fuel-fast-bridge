@@ -16,12 +16,21 @@ import { BN } from '@fuel-ts/math';
 import { Address } from 'fuels';
 import type { HTLC } from '../../ethereum/types';
 
+import {envSchema} from "./zod/index"
+
 dotenv.config();
+
+const {data: env, error: envSchemaParseError} = envSchema.safeParse(process.env);
+if(envSchemaParseError) {
+  console.error('❌: failed parsing environment scheme on process.env');
+  console.error(envSchemaParseError);
+  process.exit(1);
+}
 
 const app = express();
 app.use(express.json());
 
-const port = process.env.PORT || 3000;
+const port = env.PORT;
 
 export const db = new InMemoryDatabase();
 
@@ -173,7 +182,7 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
     },
     hash: job.hash,
     expiryTimeSeconds,
-    balance: bn((balance - fee).toString()),
+    balance: bn((balance - fee).toString()).div(bn(10).pow(9)),
     // balance: bn(balance.toString()).sub(bn(fee.toString())),
     fee: bn(0),
   };
@@ -183,6 +192,9 @@ app.post('/submit_eth_lock/:jobId', async (req, res) => {
   console.log('fuelLockHash:', fuelLockHash, '\n\n');
 
   // create the lock on the fuel side
+
+  const fuelBalance = bn(fuelLock.balance).div(bn(10).pow(9));
+  console.log('fuelBalance:', fuelBalance);
 
   const { value, transactionResult } = await (
     await fuelContract.functions
@@ -288,6 +300,7 @@ app.post('/revealHash/:jobId', async (req, res) => {
   }
 
   console.log('unlock complete', '\n\n');
+  console.log('transaction id for ethereum unlocking:', result.hash);
 
   console.log(
     'balance of eth destination after',
