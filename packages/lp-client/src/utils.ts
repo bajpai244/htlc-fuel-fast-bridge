@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { lpConfigSchema } from './zod';
 
 /**
  * Generates a random 32-byte value
@@ -24,3 +26,9 @@ export function generateRandom32BytesHex(): string {
 export function sha256(input: string | Buffer): `0x${string}` {
   return `0x${crypto.createHash('sha256').update(input).digest('hex')}`;
 }
+
+export const getLpConfig = () => {
+  // TODO: this filepath needs to be in config
+  const data = readFileSync('./lp_client.config.json');
+  return lpConfigSchema.parse(data);
+};

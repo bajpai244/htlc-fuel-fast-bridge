@@ -20,35 +20,37 @@ dotenv.config();
 const main = async () => {
   const fuelProvider = fuelContract.provider;
 
-  // number of blocks for 1 hour of time to pass
-  const ONE_HOUR = 1 * 60 * 60;
+  console.log('base asset id:', fuelProvider.getBaseAssetId());
 
-  // seet to 1 hour here
-  const expiryTimeSeconds = (await fuelContract.provider.getBlockNumber()).add(ONE_HOUR);
+  // // number of blocks for 1 hour of time to pass
+  // const ONE_HOUR = 1 * 60 * 60;
 
-  const fuelLock: LockInput = {
-    token: { bits: fuelContract.provider.getBaseAssetId() },
-    sender: {
-      bits: fuelWallet.address.toB256(),
-    },
-    destination: {
-      bits: fuelWallet.address.toB256(),
-    },
-    hash: sha256(generateRandom32Bytes()),
-    expiryTimeSeconds,
-    balance: bn(10),
-    // balance: bn(balance.toString()).sub(bn(fee.toString())),
-    fee: bn(0),
-  };
+  // // seet to 1 hour here
+  // const expiryTimeSeconds = (await fuelContract.provider.getBlockNumber()).add(ONE_HOUR);
 
-  const contractId = fuelContract.id.toB256();
-  const contract = await fuelProvider.getContract(contractId);
+  // const fuelLock: LockInput = {
+  //   token: { bits: fuelContract.provider.getBaseAssetId() },
+  //   sender: {
+  //     bits: fuelWallet.address.toB256(),
+  //   },
+  //   destination: {
+  //     bits: fuelWallet.address.toB256(),
+  //   },
+  //   hash: sha256(generateRandom32Bytes()),
+  //   expiryTimeSeconds,
+  //   balance: bn(10),
+  //   // balance: bn(balance.toString()).sub(bn(fee.toString())),
+  //   fee: bn(0),
+  // };
 
-  console.log('fuelLock', fuelLock);
+  // const contractId = fuelContract.id.toB256();
+  // const contract = await fuelProvider.getContract(contractId);
 
-  const { value: fuelLockHash } = await fuelContract.functions.compute_lock_hash(fuelLock).get();
+  // console.log('fuelLock', fuelLock);
 
-  console.log('fuelLockHash:', fuelLockHash);
+  // const { value: fuelLockHash } = await fuelContract.functions.compute_lock_hash(fuelLock).get();
+
+  // console.log('fuelLockHash:', fuelLockHash);
 };
 
 main();

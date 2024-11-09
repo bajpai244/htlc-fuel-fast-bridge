@@ -1,6 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import { generateRandom32Bytes, generateRandom32BytesHex, sha256 } from './utils';
+import { generateRandom32Bytes, generateRandom32BytesHex, getLpConfig, sha256 } from './utils';
 import { InMemoryDatabase, type JobData } from './database';
 import { Wallet, ZeroAddress } from 'ethers';
 import { ethContract, ethWallet, fuelContract, fuelWallet } from '../../user-client/src/config';
@@ -16,16 +16,18 @@ import { BN } from '@fuel-ts/math';
 import { Address } from 'fuels';
 import type { HTLC } from '../../ethereum/types';
 
-import {envSchema} from "./zod/index"
+import { envSchema } from './zod/index';
 
 dotenv.config();
 
-const {data: env, error: envSchemaParseError} = envSchema.safeParse(process.env);
-if(envSchemaParseError) {
+const { data: env, error: envSchemaParseError } = envSchema.safeParse(process.env);
+if (envSchemaParseError) {
   console.error('❌: failed parsing environment scheme on process.env');
   console.error(envSchemaParseError);
   process.exit(1);
 }
+
+const lpConfig = getLpConfig();
 
 const app = express();
 app.use(express.json());
@@ -40,9 +42,7 @@ app.get('/heartbeat', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.get('/metadata', (req, res) => {
-
-});
+app.get('/metadata', (req, res) => {});
 
 app.post('/create_job', async (req, res) => {
   try {
