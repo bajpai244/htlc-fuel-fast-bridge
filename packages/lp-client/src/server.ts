@@ -40,6 +40,10 @@ app.get('/heartbeat', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/metadata', (req, res) => {
+
+});
+
 app.post('/create_job', async (req, res) => {
   try {
     const { fuelAddress, ethereumExpiryBlockNumber } = req.body;

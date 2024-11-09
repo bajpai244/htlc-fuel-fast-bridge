@@ -1,0 +1,6 @@
+ {
+    "ethTokenAddress":  {   
+        "fuelIgnitionTokenAddress": "address_of_token_on_fuel",
+        "maxAmount": "max_amount_one_can_bridge_in_ethereum_denomination"
+    }
+ }

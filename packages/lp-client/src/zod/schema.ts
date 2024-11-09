@@ -7,3 +7,20 @@ export const envSchema = z.object({
     FUEL_PRIVATE_KEY: z.string(),
     FUEL_ENDPOINT: z.string()
 });
+
+
+// ---------------
+// section for response schemas { useful fo testing, rather than just creating simple types }
+// ---------------
+
+export const tokenMetaDataSchema = z.object({
+    fuelIgnitionTokenAddress: z.string(),
+    maxAmount: z.coerce.string(),
+    totalLiquidity: z.coerce.string(),
+    transactionTime: z.coerce.string(),
+    lockExpiryTime: z.coerce.string()
+});
+
+// Record: <TokenAddress, TokenMetaData>
+// TODO: might we can add stricter schema for token address?
+export const  metadataResponseSchema = z.record(z.string(), tokenMetaDataSchema)

@@ -176,3 +176,6 @@ dist
 
 # Add this line to the existing .gitignore file
 db.json
+
+# lp client's config file
+lp_client.config.json
